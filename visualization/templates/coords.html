@@ -1,0 +1,283 @@
+{% load list_dir %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Coords</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <style>
+        #image_container {
+            position: absolute;
+            top: 100px;
+            left: 200px;
+            overflow: scroll;
+        }
+
+        .selection-rect {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: yellow;
+            opacity: 0;
+            {#pointer-events: none;#}
+            {#z-index: 10;#}
+        }
+
+        {#body {#}
+        {#  user-select: none; /* Non-prefixed version */#}
+        {#}#}
+
+        {##myImgId {#}
+        {#    pointer-events: none;#}
+        {#}#}
+
+
+    </style>
+</head>
+<body>
+
+<div id="image_container">
+    <div id="traffic_image_container" >
+        <img  src="../../media/00002.png" alt="Failed to upload the image">
+    </div>
+</div>
+
+<div id="replace_sign">
+    <p>Here is the begining of the drop down list</p>
+    <select name="ruttier_sign" id="ruttier_sign" multiple>
+
+    </select>
+    <p>{% list_dir %}</p>
+</div>
+
+   <!-- <select name="ruttier_sign" id="ruttier_sign">
+        {#            {% list_dir 'visualization/static/visualization/img' as myimages%}#}
+{#            {% for x in myimages  %}#}
+{#                <img src="{{ x }}" alt="Failed to upload">#}
+{#                <option value="en" class="test" data-thumbnail="https://cdn.shopify.com/s/files/1/0491/2689/9880/files/aste.png?v=1611693503">Österreich#}
+{#            </option>#}
+{#                <li><img src="{{ x }}"></li>#}
+{#            {% endfor %}#}
+    </select>-->
+
+<!-- <div class="selection-rect"></div>
+<p>X:<span id="x"></span></p>
+<p>Y:<span id="y"></span></p> !-->
+
+<button type="Button"> Submit </button>
+
+<script>
+
+$(function (){
+
+
+    function fillTrafficImageReplacement(){
+            {% list_dir 'visualization/static/visualization/img' as myimages%}
+            let image;
+            {% for x in myimages  %}
+                console.log('{{ x }}');
+                image = new Image();
+                image.src = '{{ x }}';
+                /*$('<img src="{{ x }}" alt="Failed to upload">')
+                    .appendTo("replace_sign")*/
+                //$("#replace_sign").append(image)
+                $("#ruttier_sign").append($('<option>', {
+                    'value': '{{ x }}',
+                    'text': '{{ x }}',
+                    'data-icon': image
+                }));
+            {% endfor %}
+        }
+
+    // selectionRectangle variable is just an information holder for the drawn div
+
+    var MIN_HEIGHT_RECT = 40;
+    var MIN_WIDTH_RECT = 40;
+    var isMouseDown = false;
+    var selectionRectangle = {
+        id: null,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0
+    }
+
+    var newArea;
+    var number_of_divs = 0;
+    var selectionRectangleList = [];
+
+    function deleteRectangleFromList(id){
+        selectionRectangleList = selectionRectangleList.filter(element => {
+            return id !== element.id;
+        });
+    }
+
+    function createNewRectangleArea(){
+        console.log("create a new div");
+        // newArea = $('body').append("<div class='selection-rect'></div>");
+        // newArea = $('body').append("<div></div>").addClass('selection-rect')
+        number_of_divs = number_of_divs + 1;
+        newArea = $('<div></div>')
+            .addClass('selection-rect')
+            .attr('id', number_of_divs)
+            .appendTo('#traffic_image_container')
+            .mousedown(function (e){
+                console.log("Delete the div: ", e.target)
+                e.stopPropagation()
+                deleteRectangleFromList(parseInt($(this).attr("id")))
+                $(this).remove()
+            })
+            /*.mouseup(function (e){ This event never registers because once the mouse is down, the div will disappear.
+                console.log("MOUSE UP the div: ", e.target)
+                e.stopPropagation();
+            });*/
+
+
+        /*var hierarchy0 = $("#0").parents().map(function() {
+            return this.tagName;
+        }).get().reverse().join(" > ");
+        console.log("PARAGRAPH: ", hierarchy0);*/
+
+    }
+
+    function getSelectionRectNode(){
+        return newArea;
+    }
+
+    function showSelectionRectangle(selection){
+        var rect = getSelectionRectNode()
+        rect.css({"left": String(selection.left) + 'px',
+            "top": String(selection.top) + 'px',
+            "width": String(selection.right - selection.left) + 'px',
+            "height": String(selection.bottom - selection.top) + 'px',
+            "opacity": 0.5});
+    }
+
+    function hideSelectionRectangle(){
+        var rect = getSelectionRectNode()
+        rect.css({"opacity": 0})
+    }
+
+    function onMouseDown(e){
+        createNewRectangleArea()
+        isMouseDown = true;
+        selectionRectangle.id = number_of_divs;
+        selectionRectangle.left = e.offsetX;
+        selectionRectangle.top = e.offsetY;
+    }
+
+    function onMouseMove(e){
+        if(!isMouseDown){
+            return;
+        }
+        selectionRectangle.right = e.offsetX;
+        selectionRectangle.bottom = e.offsetY;
+        showSelectionRectangle(selectionRectangle);
+    }
+
+    function intersects(box1, box2){
+        let minAx = box1.left, maxAx = box1.right, minBx = box2.left, maxBx = box2.right;
+        let minAy = box1.top, maxAy = box1.bottom, minBy = box2.top, maxBy = box2.bottom;
+
+        // if one of the rectangle is below of the another one
+        if(maxAy < minBy || maxBy < minAy)
+            return false;
+
+        // if one of the rectangle is in the left of another one
+        if(maxAx < minBx || maxBx < minAx)
+            return false;
+
+        return true;
+    }
+
+    function validateSelectedRectangle(selectedRectangle){
+
+        let height = selectedRectangle.bottom - selectedRectangle.top;
+        let width = selectedRectangle.right - selectedRectangle.left;
+
+        if(height < MIN_HEIGHT_RECT || width < MIN_WIDTH_RECT ){
+            return "The minimum width and height of the rectangle has to be 40px.";
+        }
+
+        thereIsIntersection = false;
+        for(rectangle of selectionRectangleList){
+            if(intersects(selectionRectangle, rectangle)){
+                thereIsIntersection = true;
+            }
+        }
+
+        if(thereIsIntersection)
+            return "The selected zone is intersecting with another previous selected zones!";
+
+        return "";
+    }
+
+    function onMouseUp(e){
+
+        if(selectionRectangle.id === undefined || selectionRectangle.id === null)
+            return;
+
+        isMouseDown = false;
+        errorMessage = validateSelectedRectangle(selectionRectangle)
+        if(errorMessage.length > 0) {
+            alert(errorMessage);
+            $('#' + number_of_divs).remove();
+        }else{
+            selectionRectangleList.push(selectionRectangle);
+            console.log(selectionRectangleList);
+        }
+
+        selectionRectangle = {
+            id: null,
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0
+        };
+    }
+
+    $("#traffic_image_container").mousedown(function (e) {
+        e.preventDefault();
+        console.log("IITIATE EVENT_1: ", e.target)
+        onMouseDown(e);
+    });
+
+    $("#traffic_image_container").mousemove(function (e){
+        e.preventDefault();
+        //console.log("IITIATE EVENT_2: ", e.target)
+        onMouseMove(e)
+    })
+
+    $("#traffic_image_container").mouseup(function (e){
+        e.preventDefault();
+        console.log("IITIATE EVENT_3: ", e.target)
+        onMouseUp(e);
+    })
+
+    /*function GetCoordinates(event)
+    {
+        console.log("LOP: ", event)
+
+        var xCoordinate = event.offsetX;
+        var yCoordinate = event.offsetY;
+        document.getElementById("x").innerHTML = xCoordinate;
+        document.getElementById("y").innerHTML = yCoordinate;
+
+
+    var myImg = document.getElementById("myImgId");
+    myImg.onmousedown = GetCoordinates;*/
+
+    /*$("#upload_image_frame_2").on('load', function () {
+                $(this).contents().on("click", function(){
+                    console.log("BALANICI");
+                });
+                console.log("JORDAN");
+            }
+        )*/
+})
+
+</script>
+
+
+</body>
+</html>

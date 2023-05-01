@@ -1,0 +1,354 @@
+{% load list_directory %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <title>Upload file</title>
+
+    <style>
+
+        #image_container {
+            position: absolute;
+            top: 200px;
+            left: 200px;
+            overflow: scroll;
+            margin-top: 50px;
+        }
+
+        .selection-rect {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: yellow;
+            opacity: 0;
+        }
+
+        .select-sign-btn{
+            margin-top: 10px;
+            width: 100%;
+            max-width: 250px;
+            height: 64px;
+            border-radius: 5px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+        }
+
+        .container-all-replaceable-signs{
+            display: none;
+            height: 200px;
+            overflow: scroll;
+            width: 100%;
+            max-width: 350px;
+            box-shadow: 0 6px 12px rgba(0,0,0,.175);
+            border: 1px solid rgba(0,0,0,.15);
+            border-radius: 5px;
+        }
+
+    </style>
+
+</head>
+<body>
+
+<div class="upload-container">
+    <p><b>Choose an image for which to augment some traffic signs: </b></p>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <input type="file" id="traffic_image_loader" name="traffic_image">
+        <button type="submit">Upload</button>
+    </form>
+</div>
+
+{% if uploaded_file_url %}
+
+    <div class="container_replace_sign">
+        <button class="select-sign-btn"></button>
+        <button id="yes">Choose</button>
+        <div class="container-all-replaceable-signs">
+            <ul name="ul_ruttier_signs" id="ul_ruttier_signs">
+            </ul>
+        </div>
+    </div>
+
+    <div>
+        <p><b>Make the rectangular selections for the areas you wish to add/replace new signs:</b></p>
+    </div>
+
+    <div id="image_container"> {# absolute position container as the selection rectangles (absolute) to be placed with respect ot it #}
+        <div id="traffic_image_container" style="height: {{ height_frame }}px;width:{{ width_frame }}px" > {# container just to hold the image. Give the impression that we select over the image coordinate #}
+            <img  src="{{ uploaded_file_url }}" alt="Failed to upload the image">
+        </div>
+    </div>
+
+    <div>
+        <form class="augmenting_form" method="post" enctype="multipart/form-data" action="{% url 'augmenting' %}">
+            {% csrf_token %}
+            <input class="submit_replacement_info" type="submit" value="Process the image">
+{#            <button class="submit_replacement_info" type="button">CICK me here!</button>#}
+        </form>
+    </div>
+{% endif %}
+
+
+<script>
+
+    $(function (){
+
+        signsArray = []
+        selectedReplaceableSignImage = null;
+        var number_of_divs = 0;
+
+        $("#ul_ruttier_signs").html(function (){
+            {% list_dir 'visualization/static/visualization/icons/images' as myimages%}
+            let option_item, filename, image_item;
+            {% for x in myimages  %}
+                filename = '{{ x }}'.split('/').pop();
+
+                {#option_item = '<li><img src="{{ x }}" style="width: 32px; height: 32px"></li>';#}
+
+                image_item = $('<img />', {
+                    id: '{{ x }}'.split('/').pop(),
+                    src: '{{ x }}',
+                    width: '64px',
+                    height: '64px',
+                    alt: 'Failed to upload the image',
+                });
+
+                option_item = $('<li>', {
+                    value: filename,
+                }).append(image_item);
+                signsArray.push(option_item);
+            {% endfor %}
+
+            return signsArray;
+        });
+
+        $(".select-sign-btn").html(signsArray[0]);
+
+        $('#ul_ruttier_signs li').click(function(){
+           let image_item = $(this).find('img');
+           let filename = $(this).attr('value');
+           let item = $('<li />',{
+               value: filename,
+           }).append(image_item);
+           $('.select-sign-btn').html(item);
+           $(".container-all-replaceable-signs").toggle();
+        });
+
+        $(".select-sign-btn").click(function(){
+            $(".container-all-replaceable-signs").toggle();
+        });
+
+        $("#yes").click(function (){
+            selectedReplaceableSignImage = $('.select-sign-btn')
+                .find('img').clone()
+                .css({'position': 'absolute',
+                    'top': '40%',
+                    'left': '40%',
+                    'width': '32px',
+                    'height': '32px'});
+            $('#' + number_of_divs).children('img').each(function (){
+                $(this).remove();
+            });
+            $('#' + number_of_divs).append(selectedReplaceableSignImage);
+            wasTrafficSignChosen = true;
+        });
+
+        var MIN_HEIGHT_RECT = 40;
+        var MIN_WIDTH_RECT = 40;
+        var isMouseDown = false;
+        var selectionRectangle = {
+            id: null,
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0
+        }
+
+        var newArea;
+        var selectionRectangleList = [];
+        var wasTrafficSignChosen = true;
+
+        function deleteRectangleFromList(id){
+            selectionRectangleList = selectionRectangleList.filter(element => {
+                return id !== element.id;
+            });
+        }
+
+        function createNewRectangleArea(){
+            console.log("create a new div");
+            number_of_divs = number_of_divs + 1;
+            newArea = $('<div></div>')
+            .addClass('selection-rect')
+            .attr('id', number_of_divs)
+            .appendTo('#traffic_image_container')
+            .mousedown(function (e){
+                console.log("Delete the div: ", e.target)
+                e.stopPropagation();
+                deleteRectangleFromList(parseInt($(this).attr("id")));
+                $(this).remove();
+                wasTrafficSignChosen = true;
+            });
+        }
+
+        function getSelectionRectNode(){
+            return newArea;
+        }
+
+        function showSelectionRectangle(selection){
+            var rect = getSelectionRectNode()
+            rect.css({"left": String(selection.left) + 'px',
+                "top": String(selection.top) + 'px',
+                "width": String(selection.right - selection.left) + 'px',
+                "height": String(selection.bottom - selection.top) + 'px',
+                "opacity": 0.5});
+        }
+
+        function hideSelectionRectangle(){
+            var rect = getSelectionRectNode()
+            rect.css({"opacity": 0})
+        }
+
+        function onMouseDown(e){
+            if(wasTrafficSignChosen === false){
+                alert("Choose a traffic sign for the selected box!")
+                return
+            }
+
+            createNewRectangleArea()
+            isMouseDown = true;
+            selectionRectangle.id = number_of_divs;
+            selectionRectangle.left = e.offsetX;
+            selectionRectangle.top = e.offsetY;
+        }
+
+        function onMouseMove(e){
+            if(!isMouseDown){
+                return;
+            }
+            selectionRectangle.right = e.offsetX;
+            selectionRectangle.bottom = e.offsetY;
+            showSelectionRectangle(selectionRectangle);
+        }
+
+        function intersects(box1, box2){
+            let minAx = box1.left, maxAx = box1.right, minBx = box2.left, maxBx = box2.right;
+            let minAy = box1.top, maxAy = box1.bottom, minBy = box2.top, maxBy = box2.bottom;
+
+            // if one of the rectangle is below of the another one
+            if(maxAy < minBy || maxBy < minAy)
+                return false;
+
+            // if one of the rectangle is in the left of another one
+            if(maxAx < minBx || maxBx < minAx)
+                return false;
+
+            return true;
+        }
+
+        function validateSelectedRectangle(selectedRectangle){
+
+            let height = selectedRectangle.bottom - selectedRectangle.top;
+            let width = selectedRectangle.right - selectedRectangle.left;
+
+            if(height < MIN_HEIGHT_RECT || width < MIN_WIDTH_RECT ){
+                return "The minimum width and height of the rectangle has to be 40px.";
+            }
+
+            thereIsIntersection = false;
+            for(rectangle of selectionRectangleList){
+                if(intersects(selectionRectangle, rectangle)){
+                    thereIsIntersection = true;
+                }
+            }
+
+            if(thereIsIntersection)
+                return "The selected zone is intersecting with another previous selected zones!";
+
+            return "";
+        }
+
+        function onMouseUp(e){
+
+            // to avoid mouseup handlers
+            if(selectionRectangle.id === undefined || selectionRectangle.id == null)
+                return;
+
+            isMouseDown = false;
+            errorMessage = validateSelectedRectangle(selectionRectangle)
+            if(errorMessage.length > 0) {
+                alert(errorMessage);
+                $('#' + number_of_divs).remove();
+            }else{
+                selectionRectangleList.push(selectionRectangle);
+                wasTrafficSignChosen = false;
+                console.log(selectionRectangleList);
+            }
+
+            selectionRectangle = {
+                id: null,
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0
+            };
+        }
+
+        $("#traffic_image_container").mousedown(function (e) {
+            e.preventDefault();
+            onMouseDown(e);
+        });
+
+        $("#traffic_image_container").mousemove(function (e){
+            e.preventDefault();
+            onMouseMove(e)
+        });
+
+        $("#traffic_image_container").mouseup(function (e){
+            e.preventDefault();
+            onMouseUp(e);
+        });
+
+        $(".submit_replacement_info").click(function (e){
+            let augmenting_inputs_list = []
+            $("#traffic_image_container")
+                .find('.selection-rect')
+                .each(function (){
+                    {#let coord_x = $(this).css('left');#}
+                    {#let coord_y = $(this).css('top');#}
+                    {#let width_rect = $(this).css('width');#}
+                    {#let height_rect = $(this).css('height');#}
+                    {#let sign_image_name = $(this).children('img').attr('src');#}
+                    {#console.log("ALL: ", coord_x, coord_y, width_rect, height_rect, sign_image_name)#}
+
+                    let input_augmenting = {
+                        coord_x: $(this).css('left'),
+                        coord_y: $(this).css('top'),
+                        width_rect: $(this).css('width'),
+                        height_rect: $(this).css('height'),
+                        sign_image_name: $(this).children('img').attr('src').split('/').pop(),
+                    };
+
+                    augmenting_inputs_list.push(input_augmenting);
+                });
+
+            let input_item = $('<input />', {
+                name: 'selections',
+                value: JSON.stringify(augmenting_inputs_list)
+            }).attr('type', 'hidden');
+
+            let input_item_image = $('<input/>', {
+               name: 'upload_image_name',
+               value: JSON.stringify('{{ uploaded_file_url }}'.split('/').pop())
+            }).attr('type', 'hidden');
+
+            $('.augmenting_form').append(input_item);
+            $('.augmenting_form').append(input_item_image);
+        });
+
+    })
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <title>augmenting_traffic_signs</title>
+
+    <style>
+        #image_aug_container {
+            overflow: scroll;
+        }
+    </style>
+
+</head>
+<body>
+
+{% if saved_replace_image_url %}
+    <h2>The augmenting of the ruttier traffic sign on the given image: </h2>
+    <p>{{ saved_replace_image_url }}</p>
+    <div id="image_aug_container" style="height: {{ height_frame }}px;width:{{ width_frame }}px">
+        <img src="{{ saved_replace_image_url }}" alt="Failed to upload the image" >
+    </div>
+{% endif %}
+
+<div>
+    <button id="download-btn">Download</button>
+</div>
+
+<!--<div>
+    <p>{{ saved_replace_image_url }}</p>
+    <form class="keep_aug_form" method="post" enctype="multipart/form-data" action="{% url 'upload' %}">
+        {% csrf_token %}
+        <input class="submit_replacement_image" type="submit" value="submit">
+        <button class="submit_replacement_image" type="button">CICK me here!</button>
+    </form>
+</div>-->
+
+<script>
+    $(function (){
+        /*$(".submit_replacement_image").click(function (){
+            let input_item = $('<input/>', {
+                name: "traffic_image",
+                value: '{{ saved_replace_image_url }}',
+            }).attr('type', 'file');
+
+            $(".keep_aug_form").append(input_item);
+        })*/
+
+        $('#download-btn').click(function() {
+            let imageUrl = window.location.protocol + '//' + window.location.hostname + ':' +
+                window.location.port + '{{ saved_replace_image_url }}';
+            console.log("LLLLLLLLL: ", imageUrl)
+            var link = document.createElement('a');
+            link.href = imageUrl;
+            link.download = '{{ saved_file_name }}';
+
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    });
+</script>
+
+</body>
+</html>
