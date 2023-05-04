@@ -8,7 +8,7 @@
 
     <style>
 
-        #image_container {
+        #traffic_image_container {
             position: absolute;
             top: 200px;
             left: 200px;
@@ -74,10 +74,9 @@
         <p><b>Make the rectangular selections for the areas you wish to add/replace new signs:</b></p>
     </div>
 
-    <div id="image_container"> {# absolute position container as the selection rectangles (absolute) to be placed with respect ot it #}
-        <div id="traffic_image_container" style="height: {{ height_frame }}px;width:{{ width_frame }}px" > {# container just to hold the image. Give the impression that we select over the image coordinate #}
-            <img  src="{{ uploaded_file_url }}" alt="Failed to upload the image">
-        </div>
+    <div id="traffic_image_container" style="height: {{ height_frame }}px;width:{{ width_frame }}px" > {# container just to hold the image. Give the impression that we select over the image coordinate #}
+        <p>dassssssssssssssssssssssssssssssssssssssssssssss</p>
+        <img id="traffic_image" src="{{ uploaded_file_url }}" alt="Failed to upload the image">
     </div>
 
     <div>
@@ -226,8 +225,9 @@
             if(!isMouseDown){
                 return;
             }
-            selectionRectangle.right = e.offsetX;
-            selectionRectangle.bottom = e.offsetY;
+
+            selectionRectangle.right = e.offsetX; // the distance to the target element\container in which is embedded
+            selectionRectangle.bottom = e.offsetY; // the distance to the target element\container in which is embedded
             showSelectionRectangle(selectionRectangle);
         }
 
@@ -294,17 +294,17 @@
             };
         }
 
-        $("#traffic_image_container").mousedown(function (e) {
+        $("#traffic_image").mousedown(function (e) {
             e.preventDefault();
             onMouseDown(e);
         });
 
-        $("#traffic_image_container").mousemove(function (e){
+        $("#traffic_image").mousemove(function (e){
             e.preventDefault();
             onMouseMove(e)
         });
 
-        $("#traffic_image_container").mouseup(function (e){
+        $("#traffic_image").mouseup(function (e){
             e.preventDefault();
             onMouseUp(e);
         });
