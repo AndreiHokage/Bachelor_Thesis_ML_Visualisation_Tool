@@ -8,12 +8,24 @@
 
     <style>
 
+        .compute-zone{
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .selection-zone{
+
+        }
+
+        .container_replace_sign{
+            align-self: center;
+        }
+
         #traffic_image_container {
-            position: absolute;
-            top: 200px;
-            left: 200px;
+            position: relative;
+            {#top: 200px;#}
+            {#left: 200px;#}
             overflow: scroll;
-            margin-top: 50px;
         }
 
         .selection-rect {
@@ -45,6 +57,12 @@
             border-radius: 5px;
         }
 
+        .submit_replacement_info{
+            margin-top: 10px;
+            font-size: 15px;
+
+        }
+
     </style>
 
 </head>
@@ -61,29 +79,31 @@
 
 {% if uploaded_file_url %}
 
-    <div class="container_replace_sign">
-        <button class="select-sign-btn"></button>
-        <button id="yes">Choose</button>
-        <div class="container-all-replaceable-signs">
-            <ul name="ul_ruttier_signs" id="ul_ruttier_signs">
-            </ul>
+    <div class="compute-zone">
+
+        <div class="selection-zone">
+            <p><b>Make the rectangular selections for the areas you wish to add/replace new signs:</b></p>
+            <div id="traffic_image_container" style="height: {{ height_frame }}px;width:{{ width_frame }}px" > {# container just to hold the image. Give the impression that we select over the image coordinate #}
+                <img id="traffic_image" src="{{ uploaded_file_url }}" alt="Failed to upload the image">
+            </div>
         </div>
-    </div>
 
-    <div>
-        <p><b>Make the rectangular selections for the areas you wish to add/replace new signs:</b></p>
-    </div>
+        <div class="container_replace_sign">
+            <p><b>Choose a sign that is going to pe placed on the made rectangular selection: </b></p>
+            <button class="select-sign-btn"></button>
+            <button id="yes">Choose</button>
+            <div class="container-all-replaceable-signs">
+                <ul name="ul_ruttier_signs" id="ul_ruttier_signs">
+                </ul>
+            </div>
+        </div>
 
-    <div id="traffic_image_container" style="height: {{ height_frame }}px;width:{{ width_frame }}px" > {# container just to hold the image. Give the impression that we select over the image coordinate #}
-        <p>dassssssssssssssssssssssssssssssssssssssssssssss</p>
-        <img id="traffic_image" src="{{ uploaded_file_url }}" alt="Failed to upload the image">
     </div>
 
     <div>
         <form class="augmenting_form" method="post" enctype="multipart/form-data" action="{% url 'augmenting' %}">
             {% csrf_token %}
             <input class="submit_replacement_info" type="submit" value="Process the image">
-{#            <button class="submit_replacement_info" type="button">CICK me here!</button>#}
         </form>
     </div>
 {% endif %}
@@ -165,8 +185,11 @@
         }
 
         var newArea;
+        // all the rectangle selections are relative to the upper left corner of the image
         var selectionRectangleList = [];
         var wasTrafficSignChosen = true;
+        var deviationLeftTrafficImage = $("#traffic_image").position().left;
+        var deviationTopTrafficImage = $("#traffic_image").position().top;
 
         function deleteRectangleFromList(id){
             selectionRectangleList = selectionRectangleList.filter(element => {
@@ -208,26 +231,40 @@
             rect.css({"opacity": 0})
         }
 
+        function setRectCoordinatesRelativeToTheContainer(x, y, leftUpperCorner){
+            if(leftUpperCorner){
+                selectionRectangle.left = deviationLeftTrafficImage + x;
+                selectionRectangle.top = deviationTopTrafficImage + y;
+            }
+            else{
+                selectionRectangle.right = deviationLeftTrafficImage + x;
+                selectionRectangle.bottom = deviationTopTrafficImage + y;
+            }
+        }
+
+        function setRectCoordinatesRelativeToTheImage(){
+            selectionRectangle.left -= deviationLeftTrafficImage;
+            selectionRectangle.right -= deviationLeftTrafficImage;
+            selectionRectangle.top -= deviationTopTrafficImage;
+            selectionRectangle.bottom -= deviationTopTrafficImage;
+        }
+
         function onMouseDown(e){
-            if(wasTrafficSignChosen === false){
+            if(wasTrafficSignChosen === false) {
                 alert("Choose a traffic sign for the selected box!")
                 return
             }
-
             createNewRectangleArea()
             isMouseDown = true;
             selectionRectangle.id = number_of_divs;
-            selectionRectangle.left = e.offsetX;
-            selectionRectangle.top = e.offsetY;
+            setRectCoordinatesRelativeToTheContainer(e.offsetX, e.offsetY, true); // the distance to the target element\container in which is embedded
         }
 
         function onMouseMove(e){
             if(!isMouseDown){
                 return;
             }
-
-            selectionRectangle.right = e.offsetX; // the distance to the target element\container in which is embedded
-            selectionRectangle.bottom = e.offsetY; // the distance to the target element\container in which is embedded
+            setRectCoordinatesRelativeToTheContainer(e.offsetX, e.offsetY, false); // the distance to the target element\container in which is embedded
             showSelectionRectangle(selectionRectangle);
         }
 
@@ -275,6 +312,7 @@
                 return;
 
             isMouseDown = false;
+            setRectCoordinatesRelativeToTheImage()
             errorMessage = validateSelectedRectangle(selectionRectangle)
             if(errorMessage.length > 0) {
                 alert(errorMessage);
@@ -314,19 +352,22 @@
             $("#traffic_image_container")
                 .find('.selection-rect')
                 .each(function (){
-                    {#let coord_x = $(this).css('left');#}
-                    {#let coord_y = $(this).css('top');#}
-                    {#let width_rect = $(this).css('width');#}
-                    {#let height_rect = $(this).css('height');#}
-                    {#let sign_image_name = $(this).children('img').attr('src');#}
-                    {#console.log("ALL: ", coord_x, coord_y, width_rect, height_rect, sign_image_name)#}
+                    let id_selected = $(this).attr('id');
+
+                    // take the rectangle from the list because there all the coordinates
+                    // of the rectangles are relative to the image, not to the container which
+                    // embed the image
+                    let find_rect = selectionRectangleList.find(function (element){
+                        return element.id == id_selected
+                    })
+                    let sign_image_name = $(this).children('img').attr('src').split('/').pop()
 
                     let input_augmenting = {
-                        coord_x: $(this).css('left'),
-                        coord_y: $(this).css('top'),
-                        width_rect: $(this).css('width'),
-                        height_rect: $(this).css('height'),
-                        sign_image_name: $(this).children('img').attr('src').split('/').pop(),
+                        coord_x: String(find_rect.left) + 'px',
+                        coord_y: String(find_rect.top) + 'px',
+                        width_rect: String(find_rect.right - find_rect.left) + 'px',
+                        height_rect: String(find_rect.bottom - find_rect.top) + 'px',
+                        sign_image_name: sign_image_name,
                     };
 
                     augmenting_inputs_list.push(input_augmenting);

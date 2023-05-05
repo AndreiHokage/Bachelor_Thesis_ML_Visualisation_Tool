@@ -9,6 +9,12 @@
         #image_aug_container {
             overflow: scroll;
         }
+
+        #download-btn{
+            margin-top: 10px;
+            font-size: 15px;
+        }
+
     </style>
 
 </head>
@@ -16,7 +22,6 @@
 
 {% if saved_replace_image_url %}
     <h2>The augmenting of the ruttier traffic sign on the given image: </h2>
-    <p>{{ saved_replace_image_url }}</p>
     <div id="image_aug_container" style="height: {{ height_frame }}px;width:{{ width_frame }}px">
         <img src="{{ saved_replace_image_url }}" alt="Failed to upload the image" >
     </div>
