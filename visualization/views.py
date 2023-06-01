@@ -121,7 +121,6 @@ def augmenting_traffic_signs(request):
     return HttpResponse(template.render(context, request))
 
 def backend_work(request):
-    print("COST IONITA LUNagnu")
     realism_gen_type = request.POST['realism_gen_type']
 
     with open(os.path.join(BASE_DIR, r"productionfiles\visualization\RealismGeneratorConfig.json")) as f:
