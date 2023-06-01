@@ -7,7 +7,8 @@ urlpatterns = [
     path('upload/', views.upload_file, name="upload"),
     path('visualization/', views.visualization, name="visualization"),
     path('coords/', views.coords, name="coords"),
-    path('augmenting/', views.augmenting_traffic_signs, name="augmenting")
+    path('augmenting/', views.augmenting_traffic_signs, name="augmenting"),
+    path('backend_work', views.backend_work, name="backend_work")
 ]
 
 if settings.DEBUG:

@@ -5,12 +5,15 @@ import matplotlib.pyplot as plt
 from django.shortcuts import render
 from django.http import HttpResponse
 from django.template import loader
+from django.templatetags.static import static
 
 from visualization.augmenting_traffic_signs.BBox import BBox
 from visualization.augmenting_traffic_signs.utils_augmenting import load_model_inpainting, load_model_sign_embed
+from visualization.generators_factory.setup_inpainting_generator import setup_inpainting_generator_environment
+from visualization.generators_factory.setup_realism_generator import setup_realism_generator_environment
 from visualization.upload_form import UploadFileForm
 from django.core.files.storage import FileSystemStorage
-from ML_Traffic_Visualization_Tool.settings import MEDIA_ROOT
+from ML_Traffic_Visualization_Tool.settings import MEDIA_ROOT, BASE_DIR
 from visualization.utils import normalize_image_0_1, read_image_cv2, save_image, normalize_image_01_negative
 
 HEIGHT_INPUT_IMAGE_FRAME = 800
@@ -23,6 +26,7 @@ def visualization(request):
 def upload_file(request):
     template = loader.get_template("upload.html")
     context = {}
+
     if request.method == "POST":
         uploaded_file = request.FILES["traffic_image"]
 
@@ -55,20 +59,36 @@ def upload_file(request):
         print("uploaded_file_url: ", uploaded_file_url)
 
         print("???????????????????: ", ext)
+
         # print(image)
     return HttpResponse(template.render(context, request))
 
 
 def augmenting_traffic_signs(request):
-    print(request.POST)
+    realism_generator_data = None
+    with open(os.path.join(BASE_DIR, r"productionfiles\visualization\RealismGeneratorConfig.json")) as f:
+        realism_generator_data = json.load(f)
+
+    inpainting_generator_data = None
+    with open(os.path.join(BASE_DIR, r"productionfiles\visualization\InpaintingGeneratorConfig.json")) as f:
+        inpainting_generator_data = json.load(f)
+
     template = loader.get_template('augmenting.html')
     context = {}
     if request.method == "POST":
         my_data = json.loads(request.POST['selections'])
         ruttier_image_name = json.loads(request.POST['upload_image_name'])
 
-        inpainted_generator = load_model_inpainting()
-        augmenting_sign_generator = load_model_sign_embed()
+        # inpainted_generator = load_model_inpainting()
+        # augmenting_sign_generator22 = load_model_sign_embed()
+
+        realism_gen_type = json.loads(request.POST['realism_gen_type'])
+        inpaint_gen_type = json.loads(request.POST['inpaint_gen_type'])
+        realism_generator_factory = setup_realism_generator_environment(realism_gen_type, realism_generator_data)
+        inapainting_generator_factory = setup_inpainting_generator_environment(inpaint_gen_type, inpainting_generator_data)
+        inpainted_generator = inapainting_generator_factory.createFactory()
+        augmenting_sign_generator = realism_generator_factory.createFactory()
+
         ruttier_image = read_image_cv2(os.path.join(MEDIA_ROOT, ruttier_image_name))
         ruttier_image = normalize_image_01_negative(ruttier_image)
 
@@ -99,6 +119,27 @@ def augmenting_traffic_signs(request):
         context['height_frame'] = height_frame
         context['width_frame'] = width_frame
     return HttpResponse(template.render(context, request))
+
+def backend_work(request):
+    print("COST IONITA LUNagnu")
+    realism_gen_type = request.POST['realism_gen_type']
+
+    with open(os.path.join(BASE_DIR, r"productionfiles\visualization\RealismGeneratorConfig.json")) as f:
+        realism_generator_data = json.load(f)
+        allowed_icons = realism_generator_data[realism_gen_type]['list_prototype_signs']
+
+    list_images_urls = []
+    path_directory = 'visualization/static/visualization/icons/images'
+    for filename in os.listdir(path_directory):
+        if filename in allowed_icons:
+            file_path = os.path.join(path_directory, filename)
+            url = ''
+            # file_path example: visualization/static/visualization/img\9.png
+            # needs to erase the first two component from the path
+            for x in file_path.split('/')[2:]:
+                url = os.path.join(url, x)
+            list_images_urls.append(static(url))
+    return HttpResponse(json.dumps(list_images_urls))
 
 def coords(request):
     template = loader.get_template("coords.html")

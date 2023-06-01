@@ -1,4 +1,4 @@
-{% load list_directory %}
+{% load list_directory extract_type_generators %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,6 +7,11 @@
     <title>Upload file</title>
 
     <style>
+
+        .container_choose_models{
+            display: flex;
+            justify-content: space-between;
+        }
 
         .compute-zone{
             display: flex;
@@ -57,10 +62,49 @@
             border-radius: 5px;
         }
 
+        .select_real_gen_btn{
+            width: 100%;
+            max-width: 250px;
+            height: 64px;
+            border-radius: 5px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+        }
+
+        .container_all_realism_generator{
+            display: none;
+            height: 200px;
+            overflow: scroll;
+            width: 100%;
+            max-width: 350px;
+            box-shadow: 0 6px 12px rgba(0,0,0,.175);
+            border: 1px solid rgba(0,0,0,.15);
+            border-radius: 5px;
+        }
+
+        .select_inpaint_gen_btn{
+            width: 100%;
+            max-width: 250px;
+            height: 64px;
+            border-radius: 5px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+        }
+
+        .container_all_inpaint_generator{
+            display: none;
+            height: 200px;
+            overflow: scroll;
+            width: 100%;
+            max-width: 350px;
+            box-shadow: 0 6px 12px rgba(0,0,0,.175);
+            border: 1px solid rgba(0,0,0,.15);
+            border-radius: 5px;
+        }
+
         .submit_replacement_info{
             margin-top: 10px;
             font-size: 15px;
-
         }
 
     </style>
@@ -78,6 +122,30 @@
 </div>
 
 {% if uploaded_file_url %}
+
+    <div class="container_choose_models">
+
+        <div class="container_choose_realism_generator">
+            <p><b>Choose the type of generator used for realism enhacement: </b></p>
+            <button class="select_real_gen_btn"></button>
+            <button id="choose_real_gen_btn">Choose realism generator</button>
+            <div class="container_all_realism_generator">
+                <ul name="ul_realism_generator" id="ul_realism_generator">
+                </ul>
+            </div>
+        </div>
+
+        <div class="container_choose_inpainting_generator">
+            <p><b>Choose the type of generator used for inpainting: </b></p>
+            <button class="select_inpaint_gen_btn"></button>
+            <button id="choose_inpaint_gen_btn">Choose inpainting generator</button>
+            <div class="container_all_inpaint_generator">
+                <ul name="ul_inpaint_generator" id="ul_inpaint_generator">
+                </ul>
+            </div>
+        </div>
+
+    </div>
 
     <div class="compute-zone">
 
@@ -107,6 +175,7 @@
             <button class="submit_replacement_info" type="button">Click here</button>
         </form>
     </div>
+
 {% endif %}
 
 
@@ -115,64 +184,155 @@
     $(function (){
 
         signsArray = []
+        realismTypesGenerators = []
+        inpaintTypesGenerators = []
         selectedReplaceableSignImage = null;
         var number_of_divs = 0;
 
-        $("#ul_ruttier_signs").html(function (){
-            {% list_dir 'visualization/static/visualization/icons/images' as myimages%}
-            let option_item, filename, image_item;
-            {% for x in myimages  %}
-                filename = '{{ x }}'.split('/').pop();
-
-                {#option_item = '<li><img src="{{ x }}" style="width: 32px; height: 32px"></li>';#}
-
-                image_item = $('<img />', {
-                    id: '{{ x }}'.split('/').pop(),
-                    src: '{{ x }}',
-                    width: '64px',
-                    height: '64px',
-                    alt: 'Failed to upload the image',
-                });
-
+        $("#ul_realism_generator").html(function (){
+            {% extract_type_realism_gens 'productionfiles\visualization\RealismGeneratorConfig.json' as my_types %}
+            let option_item;
+            {% for x in my_types %}
                 option_item = $('<li>', {
-                    value: filename,
-                }).append(image_item);
-                signsArray.push(option_item);
+                    value: '{{ x }}',
+                })
+                .append( $('<p/>').text('{{ x }}') )
+                .css('list-style-type', 'none')
+                realismTypesGenerators.push(option_item)
             {% endfor %}
+            return realismTypesGenerators;
+        })
 
-            return signsArray;
-        });
+        $(".select_real_gen_btn").html(realismTypesGenerators[0].clone())
 
-        $(".select-sign-btn").html(signsArray[0]);
-
-        $('#ul_ruttier_signs li').click(function(){
-           let image_item = $(this).find('img');
-           let filename = $(this).attr('value');
+        $('#ul_realism_generator li').click(function(){
+           let type_realism_generator = $(this).attr('value');
            let item = $('<li />',{
-               value: filename,
-           }).append(image_item);
-           $('.select-sign-btn').html(item);
-           $(".container-all-replaceable-signs").toggle();
+               value: type_realism_generator,
+           })
+           .append($('<p/>').text(type_realism_generator))
+           .css('list-style-type', 'none');
+           $('.select_real_gen_btn').html(item);
+           $(".container_all_realism_generator").toggle();
         });
 
-        $(".select-sign-btn").click(function(){
-            $(".container-all-replaceable-signs").toggle();
+        $(".select_real_gen_btn").click(function(){
+            $(".container_all_realism_generator").toggle();
         });
 
-        $("#yes").click(function (){
-            selectedReplaceableSignImage = $('.select-sign-btn')
-                .find('img').clone()
-                .css({'position': 'absolute',
-                    'top': '40%',
-                    'left': '40%',
-                    'width': '32px',
-                    'height': '32px'});
-            $('#' + number_of_divs).children('img').each(function (){
-                $(this).remove();
+
+
+        $("#ul_inpaint_generator").html(function (){
+            {% extract_type_realism_gens 'productionfiles\visualization\InpaintingGeneratorConfig.json' as my_types %}
+            let option_item;
+            {% for x in my_types %}
+                option_item = $('<li>', {
+                    value: '{{ x }}',
+                })
+                .append( $('<p/>').text('{{ x }}') )
+                .css('list-style-type', 'none')
+                inpaintTypesGenerators.push(option_item)
+            {% endfor %}
+            return inpaintTypesGenerators;
+        })
+
+        $(".select_inpaint_gen_btn").html(inpaintTypesGenerators[0].clone())
+
+        $('#ul_inpaint_generator li').click(function(){
+           let type_realism_generator = $(this).attr('value');
+           let item = $('<li />',{
+               value: type_realism_generator,
+           })
+           .append($('<p/>').text(type_realism_generator))
+           .css('list-style-type', 'none');
+           $('.select_inpaint_gen_btn').html(item);
+           $(".container_all_inpaint_generator").toggle();
+        });
+
+        $(".select_inpaint_gen_btn").click(function(){
+            $(".container_all_inpaint_generator").toggle();
+        });
+
+        $("#choose_real_gen_btn").click(function (){
+            let realism_gen_type = $('.select_real_gen_btn').find('li').find('p').text()
+            let allowedImages = []
+            $.ajax({
+                url: '{% url 'backend_work' %}',
+                type: 'POST',
+                data: {
+                    realism_gen_type: realism_gen_type,
+                    csrfmiddlewaretoken: document.querySelector('input[name="csrfmiddlewaretoken"]').value
+                },
+                success: function (response){
+                    console.log("LUNGANU: ", '{% url 'backend_work' %}')
+                    allowedImages = eval('(' + response + ')');
+                    $('#ul_ruttier_signs li').unbind();
+                    $(".select-sign-btn").unbind();
+                    $("#yes").unbind();
+                    establish_augmenting_traffic_signs(allowedImages)
+                }
+            })
+        })
+
+        function establish_augmenting_traffic_signs(allowedImages){
+            $("#ul_ruttier_signs").html(function (){
+                signsArray = []
+{#                {% list_dir 'visualization/static/visualization/icons/images' as myimages%}#}
+                let option_item, filename, image_item;
+                for(let x of allowedImages) {
+                    filename = x.split('/').pop();
+
+                    {#option_item = '<li><img src="{{ x }}" style="width: 32px; height: 32px"></li>';#}
+
+                    image_item = $('<img />', {
+                        id: x.split('/').pop(),
+                        src: x,
+                        width: '64px',
+                        height: '64px',
+                        alt: 'Failed to upload the image',
+                    });
+
+                    option_item = $('<li>', {
+                        value: filename,
+                    }).append(image_item);
+                    signsArray.push(option_item);
+                }
+
+                return signsArray;
             });
-            $('#' + number_of_divs).append(selectedReplaceableSignImage);
-            wasTrafficSignChosen = true;
-        });
+
+            $(".select-sign-btn").html(signsArray[0].clone());
+
+            $('#ul_ruttier_signs li').click(function(){
+               let image_item = $(this).find('img').clone();
+               let filename = $(this).attr('value');
+               let item = $('<li />',{
+                   value: filename,
+               }).append(image_item);
+               $('.select-sign-btn').html(item);
+               $(".container-all-replaceable-signs").toggle();
+            });
+
+            $(".select-sign-btn").click(function(){
+                $(".container-all-replaceable-signs").toggle();
+            });
+
+
+            $("#yes").click(function (){
+                selectedReplaceableSignImage = $('.select-sign-btn')
+                    .find('img').clone()
+                    .css({'position': 'absolute',
+                        'top': '40%',
+                        'left': '40%',
+                        'width': '32px',
+                        'height': '32px'});
+                $('#' + number_of_divs).children('img').each(function (){
+                    $(this).remove();
+                });
+                $('#' + number_of_divs).append(selectedReplaceableSignImage);
+                wasTrafficSignChosen = true;
+            });
+        }
 
         var MIN_HEIGHT_RECT = 40;
         var MIN_WIDTH_RECT = 40;
@@ -384,8 +544,20 @@
                value: JSON.stringify('{{ uploaded_file_url }}'.split('/').pop())
             }).attr('type', 'hidden');
 
+            let input_type_realism_gen = $('<input/>', {
+                name: 'realism_gen_type',
+                value: JSON.stringify($('.select_real_gen_btn').find('li').find('p').text())
+            }).attr('type', 'hidden');
+
+            let input_type_inpaint_gen = $('<input/>', {
+                name: 'inpaint_gen_type',
+                value: JSON.stringify($('.select_inpaint_gen_btn').find('li').find('p').text())
+            }).attr('type', 'hidden');
+
             $('.augmenting_form').append(input_item);
             $('.augmenting_form').append(input_item_image);
+            $('.augmenting_form').append(input_type_realism_gen);
+            $('.augmenting_form').append(input_type_inpaint_gen);
         });
 
     })
